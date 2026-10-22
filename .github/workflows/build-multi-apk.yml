@@ -36,40 +36,80 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Download Apktool e Zipalign
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zipalign
+          wget https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar -O apktool.jar
 
       - name: Obter APK base
         run: |
           set -euo pipefail
           mkdir -p work
-          # O arquivo está na pasta APKs do seu repositório
           cp "APKs/${{ inputs.base_apk }}" work/base.apk
 
-      - name: Patch + recompilar + assinar
+      - name: Descompilar APK
+        run: |
+          java -jar apktool.jar d "work/base.apk" -o work/decoded -f
+
+      - name: Modificar APK (Nome, Credencial, Pacote)
         env:
-          APP_NAME:    ${{ inputs.app_name }}
-          CREDENTIAL:  ${{ inputs.credential }}
+          APP_NAME: ${{ inputs.app_name }}
+          CREDENTIAL: ${{ inputs.credential }}
           NEW_PACKAGE: ${{ inputs.new_package }}
         run: |
           set -euo pipefail
-          echo "Iniciando patch do app: $APP_NAME"
-          # AQUI ENTRARÁ A LÓGICA DE PATCH (Apktool, sed, etc)
           
-          # Simulação para o workflow não falhar (substitua pelo código real)
-          cp work/base.apk work/atx-signed.apk 
-          
-          ls -la work/
+          # 1. Alterar o Nome do App
+          if [ -f "work/decoded/res/values/strings.xml" ]; then
+            sed -i "s|<string name=\"app_name\">.*</string>|<string name=\"app_name\">$APP_NAME</string>|g" work/decoded/res/values/strings.xml
+          else
+            echo "Aviso: strings.xml não encontrado. O nome pode não ser alterado."
+          fi
+
+          # 2. Alterar o Pacote (se fornecido)
+          if [ -n "$NEW_PACKAGE" ]; then
+            echo "Alterando pacote para $NEW_PACKAGE"
+            OLD_PACKAGE=$(grep -oP 'package="\K[^"]+' work/decoded/AndroidManifest.xml || true)
+            if [ -n "$OLD_PACKAGE" ]; then
+              sed -i "s|package=\"$OLD_PACKAGE\"|package=\"$NEW_PACKAGE\"|g" work/decoded/AndroidManifest.xml
+              if [ -d "work/decoded/smali" ]; then
+                find work/decoded/smali -type f -name "*.smali" -exec sed -i "s|$OLD_PACKAGE|$NEW_PACKAGE|g" {} +
+              fi
+            fi
+          fi
+
+          # 3. Inserir Credencial
+          if [ -n "$CREDENTIAL" ]; then
+            echo "Inserindo credencial..."
+            mkdir -p work/decoded/assets/config
+            echo "$CREDENTIAL" > work/decoded/assets/config/credential.txt
+          fi
+
+      - name: Recompilar APK
+        run: |
+          java -jar apktool.jar b work/decoded -o work/unsigned.apk
+
+      - name: Assinar APK
+        run: |
+          if [ ! -f keystore.jks ]; then
+            keytool -genkey -v -keystore keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias mykey -storepass password -keypass password -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          apksigner sign --ks keystore.jks --ks-pass pass:password --key-pass pass:password --out work/atx-signed.apk work/unsigned.apk
 
       - name: Upload artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: multi-apk                 # <-- O PHP espera este nome
-          path: work/atx-signed.apk       # <-- O PHP espera este nome
+          name: multi-apk
+          path: work/atx-signed.apk
           retention-days: 7
-
