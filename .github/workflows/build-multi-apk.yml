@@ -44,11 +44,11 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
+        with:
+          packages: 'build-tools;34.0.0'
 
-      - name: Download Apktool e Zipalign
+      - name: Download Apktool
         run: |
-          sudo apt-get update
-          sudo apt-get install -y zipalign
           wget https://github.com/iBotPeaches/Apktool/releases/download/v2.9.3/apktool_2.9.3.jar -O apktool.jar
 
       - name: Obter APK base
@@ -104,6 +104,11 @@ jobs:
           if [ ! -f keystore.jks ]; then
             keytool -genkey -v -keystore keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias mykey -storepass password -keypass password -dname "CN=Android Debug,O=Android,C=US"
           fi
+          
+          # Adiciona o caminho do apksigner para o script conseguir achar
+          export PATH=$PATH:$ANDROID_HOME/build-tools/34.0.0/
+          
+          # Assina o APK
           apksigner sign --ks keystore.jks --ks-pass pass:password --key-pass pass:password --out work/atx-signed.apk work/unsigned.apk
 
       - name: Upload artifact
