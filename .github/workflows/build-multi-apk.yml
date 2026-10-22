@@ -97,11 +97,11 @@ jobs:
 
       - name: Assinar e Alinhar APK
         run: |
-          # O Uber Signer assina e alinha automaticamente e gera o arquivo com o final -aligned-signed.apk
+          # O Uber Signer assina e alinha automaticamente
           java -jar uber-apk-signer.jar -a work/unsigned.apk --out work/
           
-          # Renomeia para o nome que o PHP espera
-          mv work/unsigned-aligned-signed.apk work/atx-signed.apk
+          # CORREÇÃO AQUI: O nome gerado pelo Uber Signer é unsigned-aligned-debugSigned.apk
+          mv work/unsigned-aligned-debugSigned.apk work/atx-signed.apk
 
       - name: Upload artifact
         if: success()
