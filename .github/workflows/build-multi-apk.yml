@@ -1,0 +1,75 @@
+name: build-multi-apk
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_apk:
+        description: 'APK base'
+        required: true
+        type: choice
+        options:
+          - vip.apk
+          - vip-teste2.apk
+      app_name:
+        description: 'Nome do app'
+        required: true
+        type: string
+      credential:
+        description: 'Credencial (opcional)'
+        required: false
+        type: string
+        default: ''
+      new_package:
+        description: 'Novo pacote (opcional)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Obter APK base
+        run: |
+          set -euo pipefail
+          mkdir -p work
+          # O arquivo está na pasta APKs do seu repositório
+          cp "APKs/${{ inputs.base_apk }}" work/base.apk
+
+      - name: Patch + recompilar + assinar
+        env:
+          APP_NAME:    ${{ inputs.app_name }}
+          CREDENTIAL:  ${{ inputs.credential }}
+          NEW_PACKAGE: ${{ inputs.new_package }}
+        run: |
+          set -euo pipefail
+          echo "Iniciando patch do app: $APP_NAME"
+          # AQUI ENTRARÁ A LÓGICA DE PATCH (Apktool, sed, etc)
+          
+          # Simulação para o workflow não falhar (substitua pelo código real)
+          cp work/base.apk work/atx-signed.apk 
+          
+          ls -la work/
+
+      - name: Upload artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: multi-apk                 # <-- O PHP espera este nome
+          path: work/atx-signed.apk       # <-- O PHP espera este nome
+          retention-days: 7
+
