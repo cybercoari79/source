@@ -65,14 +65,12 @@ jobs:
         run: |
           set -euo pipefail
           
-          # 1. Alterar o Nome do App
           if [ -f "work/decoded/res/values/strings.xml" ]; then
             sed -i "s|<string name=\"app_name\">.*</string>|<string name=\"app_name\">$APP_NAME</string>|g" work/decoded/res/values/strings.xml
           else
             echo "Aviso: strings.xml não encontrado."
           fi
 
-          # 2. Alterar o Pacote (se fornecido)
           if [ -n "$NEW_PACKAGE" ]; then
             echo "Alterando pacote para $NEW_PACKAGE"
             OLD_PACKAGE=$(grep -oP 'package="\K[^"]+' work/decoded/AndroidManifest.xml || true)
@@ -84,7 +82,6 @@ jobs:
             fi
           fi
 
-          # 3. Inserir Credencial
           if [ -n "$CREDENTIAL" ]; then
             echo "Inserindo credencial..."
             mkdir -p work/decoded/assets/config
@@ -100,8 +97,8 @@ jobs:
           # O Uber Signer assina e alinha automaticamente
           java -jar uber-apk-signer.jar -a work/unsigned.apk --out work/
           
-          # CORREÇÃO AQUI: O nome gerado pelo Uber Signer é unsigned-aligned-debugSigned.apk
-          mv work/unsigned-aligned-debugSigned.apk work/atx-signed.apk
+          # A MÁGICA ACONTECE AQUI: Encontra qualquer arquivo que termine com signed.apk e renomeia
+          find work/ -name "*-debugSigned.apk" -exec mv {} work/atx-signed.apk \;
 
       - name: Upload artifact
         if: success()
