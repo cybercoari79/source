@@ -95,12 +95,12 @@ jobs:
         run: |
           java -jar apktool.jar b work/decoded -o work/unsigned.apk
 
-      - name: Assinar e Alinhar APK (Uber Signer)
+      - name: Assinar e Alinhar APK
         run: |
-          # O Uber Signer assina e alinha automaticamente
+          # O Uber Signer assina e alinha automaticamente e gera o arquivo com o final -aligned-signed.apk
           java -jar uber-apk-signer.jar -a work/unsigned.apk --out work/
           
-          # Renomeia o arquivo gerado para o padrão do PHP
+          # Renomeia para o nome que o PHP espera
           mv work/unsigned-aligned-signed.apk work/atx-signed.apk
 
       - name: Upload artifact
